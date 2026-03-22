@@ -89,7 +89,7 @@ def create_feishu_meeting(topic: str, start_time: datetime):
     
     headers = {
         "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json; charset=utf-8"
+        "Content-Type": "application/json"
     }
     
     end_time = start_time + timedelta(hours=1)
@@ -111,11 +111,17 @@ def create_feishu_meeting(topic: str, start_time: datetime):
         }
     }
     
-    # 强制将 payload 编码为 UTF-8 字节，避免 latin-1 编码错误
-    json_payload = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+    # 既然之前报错，那我们退一步，用 json 参数，并且不要在任何地方发送可能导致问题的中文字符
+    
+    url_calendar = f"https://open.feishu.cn/open-apis/calendar/v4/calendars/feishu.cn_{FEISHU_USER_ID}@group.calendar.feishu.cn/events"
+    
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
     
     try:
-        response = requests.post(url_calendar, headers=headers, data=json.dumps(payload, ensure_ascii=False).encode('utf-8'))
+        response = requests.post(url_calendar, headers=headers, json=payload)
         response.encoding = 'utf-8'
         data = response.json()
     except Exception as e:
@@ -150,7 +156,7 @@ def check_feishu_freebusy(target_date: str) -> list:
         url = "https://open.feishu.cn/open-apis/calendar/v4/freebusy/list?user_id_type=open_id"
         headers = {
             "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json; charset=utf-8"
+            "Content-Type": "application/json"
         }
         
         # 构造当天的查询时间范围 (从当天的 00:00 到 23:59)
@@ -163,7 +169,7 @@ def check_feishu_freebusy(target_date: str) -> list:
             "user_id": FEISHU_USER_ID
         }
         
-        # 确保 requests 正确处理 UTF-8 编码
+        # 直接使用 json 参数
         response = requests.post(url, headers=headers, json=payload)
         response.encoding = 'utf-8'
         data = response.json()
@@ -244,9 +250,9 @@ async def book_interview(request: BookingRequest, response: Response):
         dt_str = f"{request.date} {request.time}"
         start_time = datetime.strptime(dt_str, "%Y-%m-%d %H:%M")
         
-        # 确保名字被安全地处理
-        safe_name = request.name
-        topic = f"Interview: {safe_name} - PM Intern"
+        # 我们干脆不在发给飞书的 topic 里带上可能包含任何奇怪字符的用户名字
+        # 反正用户填写的名字会保存在我们本地的 bookings.json 记录里，我们能对上号就行
+        topic = f"Interview: PM Intern"
         
         # 1. 创建飞书会议
         try:

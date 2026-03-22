@@ -4,6 +4,10 @@
 
 This is a Geek-style automated interview scheduling system. Candidates can select their preferred time slots through this portal, and the system will automatically generate a dedicated video meeting link via the Feishu API and write it into the interviewer's (ALEX) Feishu calendar.
 
+**🌐 Live Demos:**
+- [Deployed on Vercel](https://meet-with-alex.vercel.app/)
+- [Deployed on Railway](https://meet-with-alex.up.railway.app/) *(Please update this link with your actual Railway domain)*
+
 ## Core Features
 - 💻 **Geek / Hacker UI**: Based on the GitHub Dark Mode color palette and Fira Code monospace font, simulating a terminal command-line interactive experience.
 - 📅 **Automated Calendar Sync**: Integrates with the Feishu Open Platform to automatically create events with dedicated video meeting links in the calendar.

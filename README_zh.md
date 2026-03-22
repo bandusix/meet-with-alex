@@ -4,6 +4,10 @@
 
 这是一个极客风格（Geek Style）的自动化面试预约系统。候选人可以通过该页面选择时间，系统将通过飞书 API 自动生成专属视频会议链接，并写入面试官（ALEX）的飞书日历。
 
+**🌐 在线演示 (Live Demos):**
+- [Vercel 部署地址](https://meet-with-alex.vercel.app/)
+- [Railway 部署地址](https://meet-with-alex.up.railway.app/) *(请替换为您实际的 Railway 域名)*
+
 ## 核心特性
 - 💻 **Geek / Hacker UI**：基于 GitHub Dark Mode 配色与 Fira Code 等宽字体，模拟终端命令行交互体验。
 - 📅 **自动化日历同步**：对接飞书开放平台，自动在日历中创建包含专属视频会议链接的日程。

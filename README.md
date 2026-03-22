@@ -1,85 +1,87 @@
 # Meet With ALEX - Interview Scheduler 🚀
 
-这是一个极客风格（Geek Style）的自动化面试预约系统。候选人可以通过该页面选择时间，系统将通过飞书 API 自动生成专属视频会议链接，并写入面试官（ALEX）的飞书日历。
+[🇨🇳 简体中文文档 (Chinese Version)](./README_zh.md)
 
-## 核心特性
-- 💻 **Geek / Hacker UI**：基于 GitHub Dark Mode 配色与 Fira Code 等宽字体，模拟终端命令行交互体验。
-- 📅 **自动化日历同步**：对接飞书开放平台，自动在日历中创建包含专属视频会议链接的日程。
-- ☁️ **云端原生支持**：开箱即用，已适配 Vercel（Serverless 函数）和 Railway 环境配置。
+This is a Geek-style automated interview scheduling system. Candidates can select their preferred time slots through this portal, and the system will automatically generate a dedicated video meeting link via the Feishu API and write it into the interviewer's (ALEX) Feishu calendar.
+
+## Core Features
+- 💻 **Geek / Hacker UI**: Based on the GitHub Dark Mode color palette and Fira Code monospace font, simulating a terminal command-line interactive experience.
+- 📅 **Automated Calendar Sync**: Integrates with the Feishu Open Platform to automatically create events with dedicated video meeting links in the calendar.
+- ☁️ **Cloud-Native Ready**: Works out of the box, pre-configured for Vercel (Serverless Functions) and Railway environments.
 
 ---
 
-## 准备工作（飞书权限配置）
-在部署前，你需要确保在飞书开放平台（[open.feishu.cn](https://open.feishu.cn/)）创建了“企业自建应用”，并拥有以下信息：
+## Prerequisites (Feishu Permission Configuration)
+Before deploying, ensure you have created a "Custom App" on the Feishu Open Platform ([open.feishu.cn](https://open.feishu.cn/)) and obtained the following information:
 1. **App ID** (`FEISHU_APP_ID`)
 2. **App Secret** (`FEISHU_APP_SECRET`)
-3. **User ID** (`FEISHU_USER_ID`) - 你本人的飞书 open_id
+3. **User ID** (`FEISHU_USER_ID`) - Your personal Feishu open_id
 
-**⚠️ 必须开通并发布的飞书权限：**
-- 获取与更新视频会议信息 (`vc:meeting`)
-- 预约视频会议 (`vc:reserve`)
-- 获取与更新用户日历及日程 (`calendar:calendar`)
-- 创建日历日程 (`calendar:calendar.event:create`)
-- 获取用户 user ID (`contact:user.employee_id:readonly`)
+**⚠️ Required Feishu API Scopes (Must be enabled and published):**
+- Read and update video meeting information (`vc:meeting`)
+- Schedule video meetings (`vc:reserve`)
+- Read and update user's calendar and events (`calendar:calendar`)
+- Create calendar events (`calendar:calendar.event:create`)
+- Read user's user ID (`contact:user.employee_id:readonly`)
 
-*(注：权限勾选后，请务必点击“版本管理与发布”创建一个新版本，审核通过后权限才会生效)*
-
----
-
-## 部署指南 ☁️
-
-本项目支持一键部署到主流的云托管平台，推荐使用 **Vercel** 或 **Railway**。
-
-### 选项 A: 部署到 Vercel (推荐)
-本项目根目录下已经包含了 `vercel.json`，可以直接被 Vercel 识别为 Python Serverless 项目。
-
-1. 登录 [Vercel](https://vercel.com/)。
-2. 点击右上角 **"Add New"** -> **"Project"**。
-3. 在 Import Git Repository 列表中，找到并导入（Import）你的 `meet-with-alex` 仓库。
-4. 展开 **Environment Variables** (环境变量) 区域，依次添加以下三个变量：
-   - Name: `FEISHU_APP_ID` | Value: *你的飞书 App ID*
-   - Name: `FEISHU_APP_SECRET` | Value: *你的飞书 App Secret*
-   - Name: `FEISHU_USER_ID` | Value: *你的飞书 Open ID*
-5. 点击 **Deploy**。
-6. 等待约 1-2 分钟，部署完成后，Vercel 会分配一个类似 `meet-with-alex.vercel.app` 的域名，即可访问使用！
-
-### 选项 B: 部署到 Railway
-本项目根目录下包含了 `railway.toml`，Railway 会使用 Nixpacks 自动构建并启动 FastAPI。
-
-1. 登录 [Railway](https://railway.app/)。
-2. 点击 **"New Project"**，选择 **"Deploy from GitHub repo"**。
-3. 选择你的 `meet-with-alex` 仓库。
-4. 点击卡片进入项目设置，切换到 **Variables** 面板。
-5. 点击 **"New Variable"**，添加与上述 Vercel 相同的三个飞书环境变量（`FEISHU_APP_ID`, `FEISHU_APP_SECRET`, `FEISHU_USER_ID`）。
-6. 切换到 **Settings** 面板，在 **Networking** 区域点击 **"Generate Domain"**。
-7. 等待构建完成，点击生成的公开域名即可访问！
+*(Note: After checking the permissions, you MUST click "Version Management & Release" to create and publish a new version. Permissions will only take effect after the version is approved and released.)*
 
 ---
 
-## 本地开发与测试
-如果你想在本地运行修改此项目：
+## Deployment Guide ☁️
 
-1. 克隆仓库：
+This project supports one-click deployment to mainstream cloud hosting platforms. **Vercel** or **Railway** are recommended.
+
+### Option A: Deploy to Vercel (Recommended)
+The root directory of this project already contains a `vercel.json` file, which Vercel can directly recognize as a Python Serverless project.
+
+1. Log in to [Vercel](https://vercel.com/).
+2. Click **"Add New"** -> **"Project"** in the top right corner.
+3. Find and Import your `meet-with-alex` repository from the Git Repository list.
+4. Expand the **Environment Variables** section and add the following three variables sequentially:
+   - Name: `FEISHU_APP_ID` | Value: *Your Feishu App ID*
+   - Name: `FEISHU_APP_SECRET` | Value: *Your Feishu App Secret*
+   - Name: `FEISHU_USER_ID` | Value: *Your Feishu Open ID*
+5. Click **Deploy**.
+6. Wait for about 1-2 minutes. Once the deployment is complete, Vercel will assign a domain like `meet-with-alex.vercel.app`, and it's ready to use!
+
+### Option B: Deploy to Railway
+The root directory contains a `railway.toml` file. Railway will automatically build and start FastAPI using Nixpacks.
+
+1. Log in to [Railway](https://railway.app/).
+2. Click **"New Project"**, and select **"Deploy from GitHub repo"**.
+3. Choose your `meet-with-alex` repository.
+4. Click on the project card to enter the settings, then switch to the **Variables** panel.
+5. Click **"New Variable"** and add the same three Feishu environment variables as mentioned in the Vercel section (`FEISHU_APP_ID`, `FEISHU_APP_SECRET`, `FEISHU_USER_ID`).
+6. Switch to the **Settings** panel, scroll to the **Networking** section, and click **"Generate Domain"**.
+7. Wait for the build to finish, click the generated public domain, and you're good to go!
+
+---
+
+## Local Development & Testing
+If you want to run or modify this project locally:
+
+1. Clone the repository:
    ```bash
    git clone https://github.com/bandusix/meet-with-alex.git
    cd meet-with-alex
    ```
 
-2. 安装依赖：
+2. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
-3. 复制 `.env.example` 为 `.env` 并填入你的飞书密钥：
+3. Copy `.env.example` to `.env` and fill in your Feishu credentials:
    ```bash
    cp .env.example .env
    ```
 
-4. 启动服务：
+4. Start the server:
    ```bash
    python main.py
    ```
-   随后在浏览器访问 `http://localhost:8000` 即可预览。
+   Then visit `http://localhost:8000` in your browser to preview.
 
 ---
 *Powered by ALEX*

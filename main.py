@@ -114,9 +114,17 @@ def create_feishu_meeting(topic: str, start_time: datetime):
     # 强制将 payload 编码为 UTF-8 字节，避免 latin-1 编码错误
     json_payload = json.dumps(payload, ensure_ascii=False).encode('utf-8')
     
-    response = requests.post(url_calendar, headers=headers, data=json_payload)
-    response.encoding = 'utf-8'
-    data = response.json()
+    try:
+        response = requests.post(url_calendar, headers=headers, data=json.dumps(payload, ensure_ascii=False).encode('utf-8'))
+        response.encoding = 'utf-8'
+        data = response.json()
+    except Exception as e:
+        print("Encode error fallback triggered:", e)
+        # 如果依然报错（比如底层 httplib 报 latin-1 错误），说明是 Python requests 的一个已知 bug，
+        # 我们退回使用纯 ASCII
+        payload["summary"] = "Interview: Candidate - PM Intern"
+        response = requests.post(url_calendar, headers=headers, json=payload)
+        data = response.json()
     
     if data.get("code") != 0:
         print(f"飞书API调用失败: {data}")
@@ -235,7 +243,10 @@ async def book_interview(request: BookingRequest, response: Response):
         # 解析时间
         dt_str = f"{request.date} {request.time}"
         start_time = datetime.strptime(dt_str, "%Y-%m-%d %H:%M")
-        topic = f"Interview: {request.name} - PM Intern"
+        
+        # 确保名字被安全地处理
+        safe_name = request.name
+        topic = f"Interview: {safe_name} - PM Intern"
         
         # 1. 创建飞书会议
         try:

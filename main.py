@@ -9,6 +9,7 @@ import tempfile
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import uvicorn
+from pypinyin import lazy_pinyin
 
 load_dotenv()
 
@@ -250,9 +251,13 @@ async def book_interview(request: BookingRequest, response: Response):
         dt_str = f"{request.date} {request.time}"
         start_time = datetime.strptime(dt_str, "%Y-%m-%d %H:%M")
         
-        # 我们干脆不在发给飞书的 topic 里带上可能包含任何奇怪字符的用户名字
-        # 反正用户填写的名字会保存在我们本地的 bookings.json 记录里，我们能对上号就行
-        topic = f"Interview: PM Intern"
+        # 将中文名字转换为拼音，确保飞书 API 在接受时绝对不会因为字符编码报错
+        # lazy_pinyin("成都车") -> ['cheng', 'dou', 'che']
+        # 然后用空格拼起来，并使用 title() 让首字母大写 -> "Cheng Dou Che"
+        pinyin_list = lazy_pinyin(request.name)
+        pinyin_name = " ".join(pinyin_list).title()
+        
+        topic = f"Interview: {pinyin_name} - PM Intern"
         
         # 1. 创建飞书会议
         try:

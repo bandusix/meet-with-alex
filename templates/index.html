@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALEX - Interview Scheduler</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/default.js"></script>
+    <!-- 引入 GitHub 风格的字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        geek: {
+                            bg: '#0d1117',
+                            panel: '#161b22',
+                            border: '#30363d',
+                            text: '#c9d1d9',
+                            muted: '#8b949e',
+                            primary: '#58a6ff',
+                            hover: '#1f6feb',
+                            success: '#238636',
+                            danger: '#da3633'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: 'Inter', sans-serif;
+        }
+        .geek-input {
+            background-color: #0d1117;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .geek-input:focus {
+            border-color: #58a6ff;
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
+            outline: none;
+        }
+        .slot-btn { 
+            background-color: #21262d;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            transition: all 0.2s; 
+        }
+        .slot-btn:hover {
+            background-color: #30363d;
+            border-color: #8b949e;
+        }
+        .slot-btn.selected { 
+            background-color: #1f6feb; 
+            color: white; 
+            border-color: #58a6ff; 
+        }
+        
+        /* 终端打字机光标动画 */
+        .typing-cursor::after {
+            content: '_';
+            animation: blink 1s step-start infinite;
+            color: #58a6ff;
+        }
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+
+        /* 隐藏 Flatpickr 默认的白色背景边框，适配暗黑主题 */
+        .flatpickr-calendar {
+            border: 1px solid #30363d !important;
+            box-shadow: 0 16px 32px rgba(0,0,0,0.8) !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 selection:bg-geek-primary selection:text-white">
+    <div class="max-w-lg w-full space-y-6 bg-geek-panel border border-geek-border p-8 rounded-xl shadow-2xl relative">
+        
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#21262d] border border-geek-border mb-4 overflow-hidden">
+                <!-- GitHub Avatar style placeholder -->
+                <img src="https://github.com/bandusix.png" alt="ALEX" class="w-full h-full object-cover">
+            </div>
+            <h1 class="text-2xl font-bold text-white tracking-tight font-mono typing-cursor">ALEX / Interview</h1>
+            <p class="mt-2 text-sm text-geek-muted font-mono">Product Manager @ TCL Falcon, Manage the Apps BrowseFree, BrowseHere, Magiconnect, FreeTV Club</p>
+            <div class="mt-4 text-xs font-mono text-geek-primary bg-geek-primary/10 border border-geek-primary/20 py-2 px-3 rounded-md">
+                > Welcome, all brilliant PM candidates. Looking forward to meeting you! 🚀
+            </div>
+            <div class="mt-4 flex justify-center space-x-2">
+                <span class="px-2 py-1 text-xs font-mono rounded-full bg-geek-bg border border-geek-border text-geek-muted">~ /schedule /Product-Ops-Internship</span>
+            </div>
+        </div>
+        
+        <!-- Header Tabs --> 
+        <div class="flex justify-center space-x-1 mb-6 bg-geek-bg p-1 rounded-lg border border-geek-border">
+            <button id="tabBook" class="flex-1 py-1.5 text-sm font-medium rounded-md bg-geek-panel text-white shadow-sm border border-geek-border transition-colors" onclick="switchTab('book')">
+                <span class="font-mono">Book Interview</span>
+            </button>
+            <button id="tabQuery" class="flex-1 py-1.5 text-sm font-medium rounded-md text-geek-muted hover:text-white transition-colors" onclick="switchTab('query')">
+                <span class="font-mono">Check Status</span>
+            </button>
+        </div>
+
+        <!-- ================= 预约面板 ================= -->
+        <div id="panelBook" class="animate-fade-in">
+            <form id="bookingForm" class="space-y-5">
+                <div>
+                    <label class="block text-xs font-semibold text-geek-muted uppercase tracking-wider mb-1 font-mono">Date Selection</label>
+                    <input type="text" id="datePicker" required
+                        class="geek-input block w-full px-3 py-2 rounded-md sm:text-sm font-mono placeholder-geek-border"
+                        placeholder="YYYY-MM-DD">
+                </div>
+
+                <div id="timeSlotsContainer" class="hidden">
+                    <label class="block text-xs font-semibold text-geek-muted uppercase tracking-wider mb-2 font-mono">Time Slots (GMT+8)</label>
+                    <div class="grid grid-cols-4 gap-2" id="timeSlots"></div>
+                    <input type="hidden" id="selectedTime" required>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-geek-muted uppercase tracking-wider mb-1 font-mono">Candidate Name</label>
+                        <input id="name" type="text" required
+                            class="geek-input block w-full px-3 py-2 rounded-md sm:text-sm font-mono placeholder-geek-border" placeholder="e.g. Linus Torvalds">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-geek-muted uppercase tracking-wider mb-1 font-mono">Email Address</label>
+                        <input id="email" type="email" required
+                            class="geek-input block w-full px-3 py-2 rounded-md sm:text-sm font-mono placeholder-geek-border" placeholder="you@domain.com">
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" id="submitBtn"
+                        class="w-full flex justify-center items-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-mono text-white bg-geek-success hover:bg-[#2ea043] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-geek-success focus:ring-offset-geek-bg disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        Confirm Booking & Generate Link
+                    </button>
+                </div>
+            </form>
+            
+            <!-- Terminal style output for message -->
+            <div id="messageContainer" class="mt-6 hidden">
+                <div class="bg-black rounded-md p-3 font-mono text-xs border border-geek-border shadow-inner">
+                    <div class="flex items-center space-x-2 mb-2 pb-2 border-b border-geek-border/50">
+                        <div class="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                        <div class="w-2.5 h-2.5 rounded-full bg-yellow-500"></div>
+                        <div class="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+                        <span class="text-geek-muted ml-2">bash</span>
+                    </div>
+                    <div id="message" class="text-geek-text"></div>
+                    <div id="linkContainer" class="mt-2 hidden">
+                        <span class="text-green-400">➜</span> <span class="text-geek-primary">Meeting URL Generated:</span><br>
+                        <a id="meetingLink" href="#" target="_blank" class="text-blue-400 hover:text-blue-300 underline break-all mt-1 inline-block"></a>
+                        <button onclick="copyLink()" class="mt-3 bg-geek-bg border border-geek-border text-geek-text hover:text-white hover:border-geek-muted px-3 py-1 rounded text-xs transition-colors">
+                            [Copy to Clipboard]
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= 查询面板 ================= -->
+        <div id="panelQuery" class="hidden animate-fade-in">
+            <!-- 查询表单 -->
+            <form id="queryForm" class="space-y-4">
+                <p class="text-sm text-geek-muted font-mono mb-4">> Enter credentials to view status</p>
+                <div>
+                    <label class="block text-xs font-semibold text-geek-muted uppercase tracking-wider mb-1 font-mono">Candidate Name</label>
+                    <input id="q_name" type="text" required class="geek-input block w-full px-3 py-2 rounded-md sm:text-sm font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-geek-muted uppercase tracking-wider mb-1 font-mono">Email Address</label>
+                    <input id="q_email" type="email" required class="geek-input block w-full px-3 py-2 rounded-md sm:text-sm font-mono">
+                </div>
+                <button type="submit" id="queryBtn" class="w-full py-2.5 px-4 border border-geek-border rounded-md shadow-sm text-sm font-mono text-white bg-geek-bg hover:bg-[#21262d] transition-colors">
+                    Check Status
+                </button>
+            </form>
+
+            <div id="queryMessage" class="mt-4 text-center text-sm font-mono hidden"></div>
+
+            <!-- 查询结果卡片 -->
+            <div id="resultCard" class="hidden mt-4 border border-geek-border rounded-md bg-geek-bg overflow-hidden">
+                <div class="bg-[#21262d] px-4 py-2 border-b border-geek-border flex items-center justify-between">
+                    <h3 class="text-xs font-bold text-white font-mono uppercase">Booking_Status.json</h3>
+                    <span class="flex h-2 w-2 relative">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                </div>
+                <div class="p-4 font-mono text-sm space-y-2">
+                    <div class="flex"><span class="text-geek-primary w-24">"name":</span> <span class="text-green-300">"<span id="r_name"></span>"</span>,</div>
+                    <div class="flex"><span class="text-geek-primary w-24">"date":</span> <span class="text-yellow-300">"<span id="r_date"></span>"</span>,</div>
+                    <div class="flex"><span class="text-geek-primary w-24">"time":</span> <span class="text-yellow-300">"<span id="r_time"></span>"</span>,</div>
+                    <div class="flex flex-col mt-2">
+                        <span class="text-geek-primary">"meeting_url": </span>
+                        <a id="r_link" href="#" target="_blank" class="text-blue-400 hover:underline break-all pl-4 mt-1"></a>
+                    </div>
+                </div>
+                
+                <div class="p-4 border-t border-geek-border bg-black/20 flex space-x-3">
+                    <button onclick="cancelBooking()" class="flex-1 py-1.5 px-3 border border-geek-danger/50 text-geek-danger rounded hover:bg-geek-danger hover:text-white text-xs font-mono transition-colors">
+                        Cancel Booking
+                    </button>
+                    <button onclick="rebook()" class="flex-1 py-1.5 px-3 border border-geek-primary/50 text-geek-primary rounded hover:bg-geek-primary hover:text-white text-xs font-mono transition-colors">
+                        Reschedule
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="pt-4 border-t border-geek-border text-center">
+            <p class="text-[10px] text-geek-muted font-mono flex items-center justify-center">
+                <svg class="w-3 h-3 mr-1" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+                Powered by ALEX
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Tab 切换逻辑
+        function switchTab(tab) {
+            document.getElementById('panelBook').classList.toggle('hidden', tab !== 'book');
+            document.getElementById('panelQuery').classList.toggle('hidden', tab !== 'query');
+            
+            const activeClass = 'flex-1 py-1.5 text-sm font-medium rounded-md bg-geek-panel text-white shadow-sm border border-geek-border transition-colors';
+            const inactiveClass = 'flex-1 py-1.5 text-sm font-medium rounded-md text-geek-muted hover:text-white transition-colors border border-transparent';
+            
+            document.getElementById('tabBook').className = tab === 'book' ? activeClass : inactiveClass;
+            document.getElementById('tabQuery').className = tab === 'query' ? activeClass : inactiveClass;
+
+            if (tab === 'query') {
+                checkCookieLogin();
+            }
+        }
+
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+
+        // 初始化日期 (Dark mode theme)
+        flatpickr("#datePicker", {
+            locale: "en",
+            minDate: "today",
+            dateFormat: "Y-m-d",
+            onChange: function(selectedDates, dateStr) {
+                document.getElementById('timeSlotsContainer').classList.remove('hidden');
+                generateTimeSlots();
+            }
+        });
+
+        const availableSlots = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00"];
+
+        function generateTimeSlots() {
+            const container = document.getElementById('timeSlots');
+            container.innerHTML = '';
+            document.getElementById('selectedTime').value = '';
+
+            availableSlots.forEach(time => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'slot-btn py-1.5 px-2 rounded-md text-xs font-mono';
+                btn.innerText = time;
+                btn.onclick = () => {
+                    document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    document.getElementById('selectedTime').value = time;
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function copyLink() {
+            const link = document.getElementById('meetingLink').href;
+            navigator.clipboard.writeText(link).then(() => alert('Copied to clipboard!'));
+        }
+
+        // 预约表单提交
+        document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                date: document.getElementById('datePicker').value,
+                time: document.getElementById('selectedTime').value,
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value
+            };
+
+            if (!data.time) return alert('Error: TIME_SLOT_NOT_SELECTED');
+
+            const btn = document.getElementById('submitBtn');
+            const msgContainer = document.getElementById('messageContainer');
+            const msg = document.getElementById('message');
+            const linkContainer = document.getElementById('linkContainer');
+            
+            btn.disabled = true; 
+            btn.innerHTML = '<span class="animate-pulse">Processing...</span>';
+            msgContainer.classList.remove('hidden');
+            msg.innerHTML = '<span class="text-yellow-400">> Initiating API request...</span>';
+            linkContainer.classList.add('hidden');
+            
+            try {
+                const res = await fetch('/api/book', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                
+                if (result.success) {
+                    msg.innerHTML = `<span class="text-green-400">➜</span> <span class="text-white">Status: 200 OK</span><br><span class="text-geek-muted">${result.msg}</span>`;
+                    document.getElementById('meetingLink').href = result.meeting_url;
+                    document.getElementById('meetingLink').innerText = result.meeting_url;
+                    linkContainer.classList.remove('hidden');
+                    document.getElementById('timeSlotsContainer').classList.add('hidden');
+                } else {
+                    msg.innerHTML = `<span class="text-red-400">✖ Error:</span> ${result.msg}`;
+                }
+            } catch (err) {
+                msg.innerHTML = `<span class="text-red-400">✖ Network Error</span>`;
+            } finally {
+                btn.disabled = false; 
+                btn.innerHTML = '<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>EXECUTE_BOOKING';
+            }
+        });
+
+        // 自动检查 Cookie 登录状态
+        async function checkCookieLogin() {
+            const email = getCookie('interview_email');
+            if (email) {
+                const res = await fetch('/api/me');
+                const result = await res.json();
+                if (result.success) {
+                    showResultCard(result.data);
+                    document.getElementById('queryForm').classList.add('hidden');
+                }
+            }
+        }
+
+        // 查询表单提交
+        document.getElementById('queryForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('queryBtn');
+            const msg = document.getElementById('queryMessage');
+            btn.disabled = true;
+            btn.innerText = 'Searching...';
+            
+            try {
+                const res = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        name: document.getElementById('q_name').value,
+                        email: document.getElementById('q_email').value
+                    })
+                });
+                const result = await res.json();
+                if (result.success) {
+                    showResultCard(result.data);
+                    document.getElementById('queryForm').classList.add('hidden');
+                    msg.classList.add('hidden');
+                } else {
+                    msg.classList.remove('hidden');
+                    msg.className = 'mt-4 text-center text-sm text-red-400 font-mono';
+                    msg.innerText = `> Error: ${result.msg}`;
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'GREP_RECORDS';
+            }
+        });
+
+        function showResultCard(data) {
+            document.getElementById('resultCard').classList.remove('hidden');
+            document.getElementById('r_name').innerText = data.name;
+            document.getElementById('r_date').innerText = data.date;
+            document.getElementById('r_time').innerText = data.time;
+            document.getElementById('r_link').href = data.meeting_url;
+            document.getElementById('r_link').innerText = data.meeting_url;
+            
+            // 预填预约表单以备修改
+            document.getElementById('name').value = data.name;
+            document.getElementById('email').value = data.email;
+        }
+
+        async function cancelBooking() {
+            if (!confirm('Execute rm -rf ? This cannot be undone.')) return;
+            const email = document.getElementById('r_name').innerText ? getCookie('interview_email') || document.getElementById('q_email').value : null;
+            
+            const res = await fetch('/api/cancel', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ email })
+            });
+            const result = await res.json();
+            if (result.success) {
+                alert('Success: Record deleted.');
+                location.reload();
+            }
+        }
+
+        function rebook() {
+            cancelBooking().then(() => {
+                switchTab('book');
+            });
+        }
+
+        // 页面加载时填充
+        window.onload = () => {
+            const savedName = getCookie('interview_name');
+            const savedEmail = getCookie('interview_email');
+            if (savedName) document.getElementById('name').value = decodeURIComponent(savedName);
+            if (savedEmail) document.getElementById('email').value = savedEmail;
+        };
+    </script>
+</body>
+</html>

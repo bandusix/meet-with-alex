@@ -91,6 +91,9 @@ If you want to run or modify this project locally:
 
 ## Changelog
 
+### v1.1.1
+- 🐛 **Bug Fix**: Fixed a critical issue where candidate names with Chinese characters caused a `'latin-1' codec can't encode characters` error when interacting with the Feishu API. Requests are now properly encoded in UTF-8.
+
 ### v1.1.0 (Latest)
 - ✨ **Smart Conflict Prevention**: Integrated Feishu's Free/Busy API (`calendar/v4/freebusy/list`). The system now intelligently checks the interviewer's existing calendar events. Any time slots that overlap with existing meetings will be automatically disabled (grayed out with a strike-through) to prevent double-booking.
 - 🌍 **Internationalization**: Fully migrated the user interface to English to accommodate a broader range of PM candidates.

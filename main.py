@@ -111,7 +111,11 @@ def create_feishu_meeting(topic: str, start_time: datetime):
         }
     }
     
-    response = requests.post(url_calendar, headers=headers, json=payload)
+    # 强制将 payload 编码为 UTF-8 字节，避免 latin-1 编码错误
+    json_payload = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+    
+    response = requests.post(url_calendar, headers=headers, data=json_payload)
+    response.encoding = 'utf-8'
     data = response.json()
     
     if data.get("code") != 0:
@@ -151,7 +155,9 @@ def check_feishu_freebusy(target_date: str) -> list:
             "user_id": FEISHU_USER_ID
         }
         
+        # 确保 requests 正确处理 UTF-8 编码
         response = requests.post(url, headers=headers, json=payload)
+        response.encoding = 'utf-8'
         data = response.json()
         
         occupied_slots = []

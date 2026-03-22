@@ -261,15 +261,33 @@
             locale: "en",
             minDate: "today",
             dateFormat: "Y-m-d",
-            onChange: function(selectedDates, dateStr) {
+            onChange: async function(selectedDates, dateStr) {
                 document.getElementById('timeSlotsContainer').classList.remove('hidden');
-                generateTimeSlots();
+                document.getElementById('timeSlots').innerHTML = '<span class="text-xs text-geek-muted col-span-4 animate-pulse">Loading availability...</span>';
+                document.getElementById('selectedTime').value = '';
+                
+                try {
+                    const res = await fetch('/api/slots', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ date: dateStr })
+                    });
+                    const result = await res.json();
+                    
+                    if (result.success) {
+                        generateTimeSlots(result.data, result.occupied);
+                    } else {
+                        generateTimeSlots(availableSlots, []); // 回退到全部显示
+                    }
+                } catch (e) {
+                    generateTimeSlots(availableSlots, []);
+                }
             }
         });
 
         const availableSlots = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00"];
 
-        function generateTimeSlots() {
+        function generateTimeSlots(available, occupied) {
             const container = document.getElementById('timeSlots');
             container.innerHTML = '';
             document.getElementById('selectedTime').value = '';
@@ -277,13 +295,24 @@
             availableSlots.forEach(time => {
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = 'slot-btn py-1.5 px-2 rounded-md text-xs font-mono';
-                btn.innerText = time;
-                btn.onclick = () => {
-                    document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
-                    btn.classList.add('selected');
-                    document.getElementById('selectedTime').value = time;
-                };
+                
+                if (occupied && occupied.includes(time)) {
+                    // 时间段被占用
+                    btn.className = 'py-1.5 px-2 rounded-md text-xs font-mono bg-black/50 border border-geek-border/50 text-geek-muted/50 cursor-not-allowed line-through';
+                    btn.innerText = time;
+                    btn.disabled = true;
+                    btn.title = 'Slot occupied / Has conflict';
+                } else {
+                    // 可用时间段
+                    btn.className = 'slot-btn py-1.5 px-2 rounded-md text-xs font-mono';
+                    btn.innerText = time;
+                    btn.onclick = () => {
+                        document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+                        btn.classList.add('selected');
+                        document.getElementById('selectedTime').value = time;
+                    };
+                }
+                
                 container.appendChild(btn);
             });
         }

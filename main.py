@@ -60,6 +60,9 @@ class QueryRequest(BaseModel):
 class CancelRequest(BaseModel):
     email: str
 
+class DateQueryRequest(BaseModel):
+    date: str
+
 def get_feishu_tenant_token():
     url = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal"
     payload = {
@@ -123,9 +126,102 @@ def create_feishu_meeting(topic: str, start_time: datetime):
         
     return vchat_url
 
+def check_feishu_freebusy(target_date: str) -> list:
+    """
+    检查指定日期飞书用户的忙闲状态，返回被占用的时间段列表
+    返回格式例如: ["18:00", "19:30"]
+    """
+    try:
+        token = get_feishu_tenant_token()
+        
+        # 飞书忙闲接口
+        url = "https://open.feishu.cn/open-apis/calendar/v4/freebusy/list?user_id_type=open_id"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        
+        # 构造当天的查询时间范围 (从当天的 00:00 到 23:59)
+        start_dt = datetime.strptime(f"{target_date} 00:00:00", "%Y-%m-%d %H:%M:%S")
+        end_dt = datetime.strptime(f"{target_date} 23:59:59", "%Y-%m-%d %H:%M:%S")
+        
+        payload = {
+            "time_min": f"{start_dt.isoformat()}+08:00",
+            "time_max": f"{end_dt.isoformat()}+08:00",
+            "user_id": FEISHU_USER_ID
+        }
+        
+        response = requests.post(url, headers=headers, json=payload)
+        data = response.json()
+        
+        occupied_slots = []
+        
+        if data.get("code") == 0:
+            freebusy_list = data.get("data", {}).get("freebusy_list", [])
+            for item in freebusy_list:
+                # 提取开始时间和结束时间
+                start_str = item.get("start_time")
+                end_str = item.get("end_time")
+                if not start_str or not end_str:
+                    continue
+                    
+                # 飞书返回的时间格式如: 2024-03-22T18:00:00+08:00
+                start_time = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+                end_time = datetime.fromisoformat(end_str.replace('Z', '+00:00'))
+                
+                # 将占用的时间段转化为我们的 slot 格式 (HH:MM)
+                # 面试时间固定在晚上 18:00 - 21:00，每次半小时
+                # 如果会议和我们的 Slot 有任何交集，就认为该 Slot 被占用
+                available_slots = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00"]
+                for slot in available_slots:
+                    slot_start = datetime.strptime(f"{target_date} {slot}:00+0800", "%Y-%m-%d %H:%M:%S%z")
+                    slot_end = slot_start + timedelta(hours=1) # 假设面试需要1小时
+                    
+                    # 判断时间段是否重叠 (A_start < B_end and A_end > B_start)
+                    if start_time < slot_end and end_time > slot_start:
+                        if slot not in occupied_slots:
+                            occupied_slots.append(slot)
+                            
+        return occupied_slots
+    except Exception as e:
+        print(f"查询飞书忙闲状态失败: {e}")
+        return [] # 如果查询失败，默认全部可用，保证流程不中断
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
+@app.post("/api/slots")
+async def get_available_slots(request: DateQueryRequest):
+    try:
+        # 获取飞书日历真实占用情况
+        occupied_slots = check_feishu_freebusy(request.date)
+        
+        # 获取我们系统里已经预约的本地记录（双重保险）
+        bookings = load_bookings()
+        local_occupied = []
+        for b in bookings.values():
+            if b.get("date") == request.date:
+                local_occupied.append(b.get("time"))
+                # 如果面试按1小时算，比如约了18:00，那18:30也不能约了
+                time_obj = datetime.strptime(b.get("time"), "%H:%M")
+                next_half_hour = (time_obj + timedelta(minutes=30)).strftime("%H:%M")
+                prev_half_hour = (time_obj - timedelta(minutes=30)).strftime("%H:%M")
+                local_occupied.append(next_half_hour)
+                local_occupied.append(prev_half_hour)
+                
+        # 合并所有被占用的时间段
+        all_occupied = list(set(occupied_slots + local_occupied))
+        
+        # 所有的候选时间
+        all_slots = ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00"]
+        
+        # 过滤出真正可用的时间
+        available_slots = [slot for slot in all_slots if slot not in all_occupied]
+        
+        return {"success": True, "data": available_slots, "occupied": all_occupied}
+    except Exception as e:
+        return {"success": False, "msg": str(e)}
 
 @app.post("/api/book")
 async def book_interview(request: BookingRequest, response: Response):

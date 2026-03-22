@@ -84,4 +84,20 @@ If you want to run or modify this project locally:
    Then visit `http://localhost:8000` in your browser to preview.
 
 ---
+
+## Changelog
+
+### v1.1.0 (Latest)
+- ✨ **Smart Conflict Prevention**: Integrated Feishu's Free/Busy API (`calendar/v4/freebusy/list`). The system now intelligently checks the interviewer's existing calendar events. Any time slots that overlap with existing meetings will be automatically disabled (grayed out with a strike-through) to prevent double-booking.
+- 🌍 **Internationalization**: Fully migrated the user interface to English to accommodate a broader range of PM candidates.
+- 🎨 **UI Enhancements**: Added an inspiring welcome message (`> Welcome, all brilliant PM candidates...`) while maintaining the core Geek/Hacker terminal aesthetic.
+
+### v1.0.0
+- 🎉 Initial release.
+- 📅 Feishu API integration for automatic video meeting generation and calendar event creation.
+- 💻 Geek/Hacker style UI with terminal-like interactions and Fira Code monospace font.
+- 🍪 Client-side state persistence using Cookies for checking and managing existing bookings.
+- ☁️ Ready for Vercel and Railway deployment.
+
+---
 *Powered by ALEX*

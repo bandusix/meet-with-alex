@@ -89,7 +89,7 @@ def create_feishu_meeting(topic: str, start_time: datetime):
     
     headers = {
         "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json; charset=utf-8"
     }
     
     end_time = start_time + timedelta(hours=1)
@@ -142,7 +142,7 @@ def check_feishu_freebusy(target_date: str) -> list:
         url = "https://open.feishu.cn/open-apis/calendar/v4/freebusy/list?user_id_type=open_id"
         headers = {
             "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json; charset=utf-8"
         }
         
         # 构造当天的查询时间范围 (从当天的 00:00 到 23:59)

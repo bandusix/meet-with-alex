@@ -6,7 +6,7 @@
 
 **🌐 在线演示 (Live Demos):**
 - [Vercel 部署地址](https://meet-with-alex.vercel.app/)
-- [Railway 部署地址](https://meet-with-alex.up.railway.app/) *(请替换为您实际的 Railway 域名)*
+- [Railway 部署地址](https://meet-with-alex-production.up.railway.app)
 
 ## 核心特性
 - 💻 **Geek / Hacker UI**：基于 GitHub Dark Mode 配色与 Fira Code 等宽字体，模拟终端命令行交互体验。

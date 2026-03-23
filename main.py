@@ -255,9 +255,17 @@ async def get_available_slots(request: DateQueryRequest):
 @app.post("/api/book")
 async def book_interview(request: BookingRequest, response: Response):
     try:
-        # 解析时间
+        # 解析时间，并且强制指定为系统所在的本地时间，然后生成 timestamp
         dt_str = f"{request.date} {request.time}"
-        start_time = datetime.strptime(dt_str, "%Y-%m-%d %H:%M")
+        
+        # 很多服务器默认是 UTC 时间，我们在 strptime 之后，应该将其视为北京时间(GMT+8)
+        # 否则 strptime() 返回的是一个 naive datetime，.timestamp() 会将其当作系统本地时区来转换。
+        # 如果系统是 UTC (比如 Vercel)，那么 "21:00" 就会被当作 UTC 的 21:00（即北京时间次日 05:00）！
+        import pytz
+        tz = pytz.timezone('Asia/Shanghai')
+        
+        naive_start_time = datetime.strptime(dt_str, "%Y-%m-%d %H:%M")
+        start_time = tz.localize(naive_start_time)
         
         # 将中文名字转换为拼音，确保飞书 API 在接受时绝对不会因为字符编码报错
         # lazy_pinyin("成都车") -> ['cheng', 'dou', 'che']

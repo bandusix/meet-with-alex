@@ -91,6 +91,9 @@ If you want to run or modify this project locally:
 
 ## Changelog
 
+### v1.2.1
+- ⏰ **Timezone Fix**: Explicitly specified the `Asia/Shanghai` timezone when generating event timestamps. This resolves an issue where cloud platforms (like Vercel or Railway) running in UTC would inadvertently shift evening interviews (e.g., 21:00) to the next morning (05:00).
+
 ### v1.2.0 (Latest)
 - 💼 **Job Title Update**: Updated all interview event descriptions and email templates to reflect the specific role: `TCL FALCON Overseas Product Operation Intern`.
 - 📅 **Enhanced Feishu Calendar Sync**: 

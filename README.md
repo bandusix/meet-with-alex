@@ -91,10 +91,14 @@ If you want to run or modify this project locally:
 
 ## Changelog
 
+### v1.3.0 (Latest)
+- 📄 **Resume Upload Integration**: Added an optional file upload field in the frontend for candidates to upload their PDF resumes (up to 5MB).
+- 📎 **Feishu Calendar Attachment**: The system now automatically uploads the candidate's resume to Feishu Drive and binds it directly to the corresponding interview calendar event. Interviewers can access the resume instantly before the meeting.
+
 ### v1.2.1
 - ⏰ **Timezone Fix**: Explicitly specified the `Asia/Shanghai` timezone when generating event timestamps. This resolves an issue where cloud platforms (like Vercel or Railway) running in UTC would inadvertently shift evening interviews (e.g., 21:00) to the next morning (05:00).
 
-### v1.2.0 (Latest)
+### v1.2.0
 - 💼 **Job Title Update**: Updated all interview event descriptions and email templates to reflect the specific role: `TCL FALCON Overseas Product Operation Intern`.
 - 📅 **Enhanced Feishu Calendar Sync**: 
   - Switched from fallback mechanisms to the official Feishu primary calendar integration, utilizing the application's Bot capability.
@@ -104,7 +108,7 @@ If you want to run or modify this project locally:
 ### v1.1.1
 - 🐛 **Bug Fix**: Fixed a critical issue where candidate names with Chinese characters caused a `'latin-1' codec can't encode characters` error when interacting with the Feishu API. Requests are now properly encoded in UTF-8.
 
-### v1.1.0 (Latest)
+### v1.1.0
 - ✨ **Smart Conflict Prevention**: Integrated Feishu's Free/Busy API (`calendar/v4/freebusy/list`). The system now intelligently checks the interviewer's existing calendar events. Any time slots that overlap with existing meetings will be automatically disabled (grayed out with a strike-through) to prevent double-booking.
 - 🌍 **Internationalization**: Fully migrated the user interface to English to accommodate a broader range of PM candidates.
 - 🎨 **UI Enhancements**: Added an inspiring welcome message (`> Welcome, all brilliant PM candidates...`) while maintaining the core Geek/Hacker terminal aesthetic.

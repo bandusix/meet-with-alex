@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response, Form, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -76,6 +76,73 @@ def get_feishu_tenant_token():
         raise Exception(f"获取飞书Token失败: {data.get('msg')}")
     return data.get("tenant_access_token")
 
+def upload_resume_to_feishu(file_content: bytes, filename: str) -> str:
+    """
+    将文件上传到飞书，并返回 file_token。
+    根据飞书文档，日历附件只能通过 /drive/v1/files/upload_all 接口上传。
+    由于这是一个简单的 Serverless 部署，我们使用直接上传。
+    """
+    try:
+        token = get_feishu_tenant_token()
+        url = "https://open.feishu.cn/open-apis/drive/v1/files/upload_all"
+        
+        headers = {
+            "Authorization": f"Bearer {token}"
+        }
+        
+        # parent_node 需要是应用文件夹，如果不指定或者指定错误，可以留空或者使用特定的 folder_token
+        # 为了兼容性，使用 "" 代表根目录，或者在企业设置中创建一个特定的文件夹
+        # 此处使用 requests 的 files 参数来上传 multipart/form-data
+        files = {
+            'file': (filename, file_content, 'application/pdf')
+        }
+        data = {
+            'file_name': filename,
+            'parent_type': 'explorer',
+            'parent_node': ''
+        }
+        
+        response = requests.post(url, headers=headers, files=files, data=data)
+        res_data = response.json()
+        
+        if res_data.get("code") == 0:
+            return res_data.get("data", {}).get("file_token")
+        else:
+            print(f"Resume upload failed: {res_data}")
+            return None
+    except Exception as e:
+        print(f"Exception during resume upload: {e}")
+        return None
+
+def bind_resume_to_event(calendar_id: str, event_id: str, file_token: str):
+    """将上传成功的飞书云文档绑定到具体的日历事件附件中"""
+    if not file_token:
+        return
+        
+    try:
+        token = get_feishu_tenant_token()
+        url = f"https://open.feishu.cn/open-apis/calendar/v4/calendars/{calendar_id}/events/{event_id}"
+        
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        
+        # 飞书 PATCH 接口增量更新
+        payload = {
+            "attachments": [
+                {
+                    "file_token": file_token
+                }
+            ]
+        }
+        
+        response = requests.patch(url, headers=headers, json=payload)
+        if response.json().get("code") != 0:
+            print(f"Failed to bind resume to event: {response.json()}")
+    except Exception as e:
+        print(f"Exception during binding resume: {e}")
+
 def create_feishu_meeting(topic: str, start_time: datetime, candidate_email: str):
     token = get_feishu_tenant_token()
     
@@ -104,7 +171,7 @@ def create_feishu_meeting(topic: str, start_time: datetime, candidate_email: str
             "timezone": "Asia/Shanghai"
         },
         "vchat": {
-            "vc_type": "vc" # vc 表示自动生成飞书视频会议
+            "vc_type": "vc"
         }
     }
     
@@ -113,12 +180,11 @@ def create_feishu_meeting(topic: str, start_time: datetime, candidate_email: str
     
     if data.get("code") != 0:
         print(f"飞书API调用失败: {data}")
-        # 极客降级方案：MD5 生成虚拟会议号
         import hashlib
         unique_str = f"{topic}_{int(start_time.timestamp())}"
         hash_obj = hashlib.md5(unique_str.encode('utf-8'))
         room_id = str(int(hash_obj.hexdigest(), 16))[:9]
-        return f"https://vc.feishu.cn/j/{room_id}"
+        return f"https://vc.feishu.cn/j/{room_id}", None
         
     event_id = data.get("data", {}).get("event", {}).get("event_id")
     
@@ -149,9 +215,9 @@ def create_feishu_meeting(topic: str, start_time: datetime, candidate_email: str
         unique_str = f"{topic}_{int(start_time.timestamp())}"
         hash_obj = hashlib.md5(unique_str.encode('utf-8'))
         room_id = str(int(hash_obj.hexdigest(), 16))[:9]
-        return f"https://vc.feishu.cn/j/{room_id}"
+        return f"https://vc.feishu.cn/j/{room_id}", event_id
         
-    return vchat_url
+    return vchat_url, event_id
 
 def check_feishu_freebusy(target_date: str) -> list:
     """
@@ -253,10 +319,17 @@ async def get_available_slots(request: DateQueryRequest):
         return {"success": False, "msg": str(e)}
 
 @app.post("/api/book")
-async def book_interview(request: BookingRequest, response: Response):
+async def book_interview(
+    response: Response,
+    date: str = Form(...),
+    time: str = Form(...),
+    name: str = Form(...),
+    email: str = Form(...),
+    resume: UploadFile = File(None)
+):
     try:
         # 解析时间，并且强制指定为系统所在的本地时间，然后生成 timestamp
-        dt_str = f"{request.date} {request.time}"
+        dt_str = f"{date} {time}"
         
         # 很多服务器默认是 UTC 时间，我们在 strptime 之后，应该将其视为北京时间(GMT+8)
         # 否则 strptime() 返回的是一个 naive datetime，.timestamp() 会将其当作系统本地时区来转换。
@@ -270,37 +343,60 @@ async def book_interview(request: BookingRequest, response: Response):
         # 将中文名字转换为拼音，确保飞书 API 在接受时绝对不会因为字符编码报错
         # lazy_pinyin("成都车") -> ['cheng', 'dou', 'che']
         # 然后用空格拼起来，并使用 title() 让首字母大写 -> "Cheng Dou Che"
-        pinyin_list = lazy_pinyin(request.name)
+        pinyin_list = lazy_pinyin(name)
         pinyin_name = " ".join(pinyin_list).title()
         
         topic = f"Interview: {pinyin_name} - Product Ops Intern"
         
         # 1. 创建飞书会议
+        event_id = None
         try:
-            meeting_url = create_feishu_meeting(topic, start_time, request.email)
+            meeting_url, event_id = create_feishu_meeting(topic, start_time, email)
         except Exception as e:
             # 捕获飞书报错，如果没配好飞书，给个默认链接
             print(f"Warning: {e}")
             meeting_url = "https://vc.feishu.cn/j/mock_link_please_configure_api"
             
-        # 2. 保存预约记录
+        # 2. 处理简历附件上传
+        if resume and event_id:
+            try:
+                # 读取文件内容
+                file_content = await resume.read()
+                
+                # 安全处理文件名
+                import urllib.parse
+                safe_filename = urllib.parse.quote(resume.filename) if resume.filename else "resume.pdf"
+                
+                print(f"Uploading resume: {safe_filename}, size: {len(file_content)} bytes")
+                file_token = upload_resume_to_feishu(file_content, safe_filename)
+                
+                if file_token:
+                    # 你的应用的日历ID (与创建会议时一致)
+                    calendar_id = "feishu.cn_WPYG3LHf7kmGwN2Fqpq8dd@group.calendar.feishu.cn"
+                    bind_resume_to_event(calendar_id, event_id, file_token)
+                    print("Resume attached to Feishu event successfully.")
+            except Exception as e:
+                print(f"Error handling resume: {e}")
+
+        # 3. 保存预约记录
         booking_data = {
-            "name": request.name,
-            "email": request.email,
-            "date": request.date,
-            "time": request.time,
+            "name": name,
+            "email": email,
+            "date": date,
+            "time": time,
             "meeting_url": meeting_url,
+            "has_resume": bool(resume),
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
-        save_booking(request.email, booking_data)
+        save_booking(email, booking_data)
         
-        # 3. 设置 Cookie (有效7天)
+        # 4. 设置 Cookie (有效7天)
         # 注意：cookie的value如果包含非ascii字符（如中文姓名），必须进行URL编码
         # 否则在 set_cookie 内部底层组装 HTTP Headers 时会触发 latin-1 编码错误
         import urllib.parse
-        encoded_name = urllib.parse.quote(request.name)
+        encoded_name = urllib.parse.quote(name)
         
-        response.set_cookie(key="interview_email", value=request.email, max_age=7*24*3600)
+        response.set_cookie(key="interview_email", value=email, max_age=7*24*3600)
         response.set_cookie(key="interview_name", value=encoded_name, max_age=7*24*3600)
             
         return {"success": True, "msg": "Booking created successfully!", "meeting_url": meeting_url}

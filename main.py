@@ -119,6 +119,23 @@ def create_feishu_meeting(topic: str, start_time: datetime):
         room_id = str(int(hash_obj.hexdigest(), 16))[:9]
         return f"https://vc.feishu.cn/j/{room_id}"
         
+    event_id = data.get("data", {}).get("event", {}).get("event_id")
+    
+    # 关键步骤：把面试官（你）作为参与人拉进这个日程里，否则它只会出现在应用自己的隐藏日历中
+    if event_id:
+        url_attendees = f"https://open.feishu.cn/open-apis/calendar/v4/calendars/{calendar_id}/events/{event_id}/attendees?user_id_type=open_id"
+        payload_attendees = {
+            "attendees": [
+                {
+                    "type": "user",
+                    "is_optional": False,
+                    "user_id": FEISHU_USER_ID
+                }
+            ]
+        }
+        # 发送添加参与人请求
+        requests.post(url_attendees, headers=headers, json=payload_attendees)
+        
     # 从日程返回结果中提取真实会议链接
     vchat_url = data.get("data", {}).get("event", {}).get("vchat", {}).get("meeting_url")
     if not vchat_url:

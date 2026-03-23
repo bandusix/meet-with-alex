@@ -210,7 +210,7 @@ def check_feishu_freebusy(target_date: str) -> list:
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 @app.post("/api/slots")
 async def get_available_slots(request: DateQueryRequest):

@@ -76,7 +76,7 @@ def get_feishu_tenant_token():
         raise Exception(f"获取飞书Token失败: {data.get('msg')}")
     return data.get("tenant_access_token")
 
-def create_feishu_meeting(topic: str, start_time: datetime):
+def create_feishu_meeting(topic: str, start_time: datetime, candidate_email: str):
     token = get_feishu_tenant_token()
     
     headers = {
@@ -93,7 +93,8 @@ def create_feishu_meeting(topic: str, start_time: datetime):
     payload = {
         "summary": topic,
         "description": "BrowseFree PM Intern Interview",
-        "need_notification": False,
+        "need_notification": True,
+        "attendee_ability": "can_see_others",
         "start_time": {
             "timestamp": str(int(start_time.timestamp())),
             "timezone": "Asia/Shanghai"
@@ -121,7 +122,7 @@ def create_feishu_meeting(topic: str, start_time: datetime):
         
     event_id = data.get("data", {}).get("event", {}).get("event_id")
     
-    # 关键步骤：把面试官（你）作为参与人拉进这个日程里，否则它只会出现在应用自己的隐藏日历中
+    # 关键步骤：把面试官（你）和候选人作为参与人拉进这个日程里
     if event_id:
         url_attendees = f"https://open.feishu.cn/open-apis/calendar/v4/calendars/{calendar_id}/events/{event_id}/attendees?user_id_type=open_id"
         payload_attendees = {
@@ -130,6 +131,11 @@ def create_feishu_meeting(topic: str, start_time: datetime):
                     "type": "user",
                     "is_optional": False,
                     "user_id": FEISHU_USER_ID
+                },
+                {
+                    "type": "third_party",
+                    "is_optional": False,
+                    "third_party_email": candidate_email
                 }
             ]
         }
@@ -263,7 +269,7 @@ async def book_interview(request: BookingRequest, response: Response):
         
         # 1. 创建飞书会议
         try:
-            meeting_url = create_feishu_meeting(topic, start_time)
+            meeting_url = create_feishu_meeting(topic, start_time, request.email)
         except Exception as e:
             # 捕获飞书报错，如果没配好飞书，给个默认链接
             print(f"Warning: {e}")

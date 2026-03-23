@@ -91,6 +91,13 @@ If you want to run or modify this project locally:
 
 ## Changelog
 
+### v1.2.0 (Latest)
+- 💼 **Job Title Update**: Updated all interview event descriptions and email templates to reflect the specific role: `TCL FALCON Overseas Product Operation Intern`.
+- 📅 **Enhanced Feishu Calendar Sync**: 
+  - Switched from fallback mechanisms to the official Feishu primary calendar integration, utilizing the application's Bot capability.
+  - 📧 **Automated Email Invitations**: The candidate's email is now dynamically added as a `third_party` attendee to the Feishu event, triggering an automated and professional calendar invite email directly to the candidate's inbox.
+  - 👀 **Transparent Attendee List**: Enabled the `can_see_others` attribute so candidates can see the interviewer (ALEX) in the meeting details.
+
 ### v1.1.1
 - 🐛 **Bug Fix**: Fixed a critical issue where candidate names with Chinese characters caused a `'latin-1' codec can't encode characters` error when interacting with the Feishu API. Requests are now properly encoded in UTF-8.
 

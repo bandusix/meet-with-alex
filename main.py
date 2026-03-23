@@ -77,20 +77,58 @@ def get_feishu_tenant_token():
     return data.get("tenant_access_token")
 
 def create_feishu_meeting(topic: str, start_time: datetime):
-    # 如果由于权限问题无法调用飞书接口，我们可以通过代码算法生成一个动态的专属链接
-    # 这里我们采用一个非常极客的做法：使用飞书的快速会议室 URL schema，
-    # 结合候选人名字拼音和时间戳，生成一个独一无二的“虚拟会议室”ID。
-    import hashlib
+    token = get_feishu_tenant_token()
     
-    # 构造唯一标识 (例如：Interview_ChengDouChe_1711234567)
-    unique_str = f"{topic}_{int(start_time.timestamp())}"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
     
-    # 使用 MD5 取前 9 位数字作为独一无二的会议室号（飞书的会议室号通常是 9 位数字）
-    hash_obj = hashlib.md5(unique_str.encode('utf-8'))
-    room_id = str(int(hash_obj.hexdigest(), 16))[:9]
+    # 你的应用的日历ID
+    calendar_id = "feishu.cn_WPYG3LHf7kmGwN2Fqpq8dd@group.calendar.feishu.cn"
+    url_calendar = f"https://open.feishu.cn/open-apis/calendar/v4/calendars/{calendar_id}/events"
     
-    # 这里为了让你现在就能跑通并且每次链接都不一样，我们返回一个动态生成的会议室占位符
-    return f"https://vc.feishu.cn/j/{room_id}"
+    end_time = start_time + timedelta(hours=1)
+    
+    payload = {
+        "summary": topic,
+        "description": "BrowseFree PM Intern Interview",
+        "need_notification": False,
+        "start_time": {
+            "timestamp": str(int(start_time.timestamp())),
+            "timezone": "Asia/Shanghai"
+        },
+        "end_time": {
+            "timestamp": str(int(end_time.timestamp())),
+            "timezone": "Asia/Shanghai"
+        },
+        "vchat": {
+            "vc_type": "vc" # vc 表示自动生成飞书视频会议
+        }
+    }
+    
+    response = requests.post(url_calendar, headers=headers, json=payload)
+    data = response.json()
+    
+    if data.get("code") != 0:
+        print(f"飞书API调用失败: {data}")
+        # 极客降级方案：MD5 生成虚拟会议号
+        import hashlib
+        unique_str = f"{topic}_{int(start_time.timestamp())}"
+        hash_obj = hashlib.md5(unique_str.encode('utf-8'))
+        room_id = str(int(hash_obj.hexdigest(), 16))[:9]
+        return f"https://vc.feishu.cn/j/{room_id}"
+        
+    # 从日程返回结果中提取真实会议链接
+    vchat_url = data.get("data", {}).get("event", {}).get("vchat", {}).get("meeting_url")
+    if not vchat_url:
+        import hashlib
+        unique_str = f"{topic}_{int(start_time.timestamp())}"
+        hash_obj = hashlib.md5(unique_str.encode('utf-8'))
+        room_id = str(int(hash_obj.hexdigest(), 16))[:9]
+        return f"https://vc.feishu.cn/j/{room_id}"
+        
+    return vchat_url
 
 def check_feishu_freebusy(target_date: str) -> list:
     """

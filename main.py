@@ -279,8 +279,13 @@ async def book_interview(request: BookingRequest, response: Response):
         save_booking(request.email, booking_data)
         
         # 3. 设置 Cookie (有效7天)
+        # 注意：cookie的value如果包含非ascii字符（如中文姓名），必须进行URL编码
+        # 否则在 set_cookie 内部底层组装 HTTP Headers 时会触发 latin-1 编码错误
+        import urllib.parse
+        encoded_name = urllib.parse.quote(request.name)
+        
         response.set_cookie(key="interview_email", value=request.email, max_age=7*24*3600)
-        response.set_cookie(key="interview_name", value=request.name, max_age=7*24*3600)
+        response.set_cookie(key="interview_name", value=encoded_name, max_age=7*24*3600)
             
         return {"success": True, "msg": "Booking created successfully!", "meeting_url": meeting_url}
         
@@ -292,8 +297,11 @@ async def query_booking(request: QueryRequest, response: Response):
     bookings = load_bookings()
     if request.email in bookings and bookings[request.email]["name"] == request.name:
         # 如果查询成功，同样设置cookie，方便后续访问
+        import urllib.parse
+        encoded_name = urllib.parse.quote(request.name)
+        
         response.set_cookie(key="interview_email", value=request.email, max_age=7*24*3600)
-        response.set_cookie(key="interview_name", value=request.name, max_age=7*24*3600)
+        response.set_cookie(key="interview_name", value=encoded_name, max_age=7*24*3600)
         return {"success": True, "data": bookings[request.email]}
     return {"success": False, "msg": "Record not found. Please check your credentials."}
 

@@ -146,8 +146,13 @@
 
                 <div>
                     <label class="block text-xs font-semibold text-geek-muted uppercase tracking-wider mb-1 font-mono">Resume (PDF, optional)</label>
-                    <input type="file" id="resumeFile" accept=".pdf"
-                        class="block w-full text-sm text-geek-muted file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-mono file:bg-geek-bg file:text-white hover:file:bg-[#21262d] transition-colors border border-geek-border rounded-md cursor-pointer">
+                    <div class="relative">
+                        <input type="file" id="resumeFile" accept=".pdf" class="hidden" onchange="updateFileName(this)">
+                        <label for="resumeFile" class="flex items-center w-full px-3 py-2 border border-geek-border rounded-md cursor-pointer hover:bg-[#21262d] transition-colors bg-black/30 group">
+                            <span class="bg-geek-border text-white text-[10px] font-mono py-1 px-2 rounded mr-3 group-hover:bg-geek-primary transition-colors">Choose File</span>
+                            <span id="fileNameDisplay" class="text-xs font-mono text-geek-muted truncate">No file chosen</span>
+                        </label>
+                    </div>
                     <p class="text-[10px] text-geek-muted mt-1 font-mono italic">// Upload your resume. Max size: 5MB.</p>
                 </div>
 
@@ -322,6 +327,19 @@
                 
                 container.appendChild(btn);
             });
+        }
+
+        function updateFileName(input) {
+            const display = document.getElementById('fileNameDisplay');
+            if (input.files && input.files[0]) {
+                display.textContent = input.files[0].name;
+                display.classList.remove('text-geek-muted');
+                display.classList.add('text-green-400');
+            } else {
+                display.textContent = 'No file chosen';
+                display.classList.add('text-geek-muted');
+                display.classList.remove('text-green-400');
+            }
         }
 
         function copyLink() {

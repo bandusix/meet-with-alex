@@ -91,7 +91,10 @@ If you want to run or modify this project locally:
 
 ## Changelog
 
-### v1.3.0 (Latest)
+### v1.3.1 (Latest)
+- 💼 **Job Title Expansion**: Updated all interview event descriptions, meeting topics, and UI copy to support recruiting for both `Product Manager` and `Intern` roles, expanding from the previous intern-only focus.
+
+### v1.3.0
 - 📄 **Resume Upload Integration**: Added an optional file upload field in the frontend for candidates to upload their PDF resumes (up to 5MB).
 - 📎 **Feishu Calendar Attachment**: The system now automatically uploads the candidate's resume to Feishu Drive and binds it directly to the corresponding interview calendar event. Interviewers can access the resume instantly before the meeting.
 

@@ -159,7 +159,7 @@ def create_feishu_meeting(topic: str, start_time: datetime, candidate_email: str
     
     payload = {
         "summary": topic,
-        "description": "TCL FALCON Overseas Product Operation Intern Interview",
+        "description": "TCL FALCON Overseas Product Manager / Intern Interview",
         "need_notification": True,
         "attendee_ability": "can_see_others",
         "start_time": {
@@ -345,10 +345,10 @@ async def book_interview(
         # 然后用空格拼起来，并使用 title() 让首字母大写 -> "Cheng Dou Che"
         pinyin_list = lazy_pinyin(name)
         pinyin_name = " ".join(pinyin_list).title()
+        # 构建日程标题，支持产品经理和实习生
+        topic = f"Interview: {pinyin_name} - Product Manager / Intern"
         
-        topic = f"Interview: {pinyin_name} - Product Ops Intern"
-        
-        # 1. 创建飞书会议
+        # 1. 创建飞书日程
         event_id = None
         try:
             meeting_url, event_id = create_feishu_meeting(topic, start_time, email)

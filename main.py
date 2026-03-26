@@ -5,7 +5,6 @@ from pydantic import BaseModel
 import requests
 import os
 import json
-import tempfile
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import uvicorn
@@ -22,9 +21,8 @@ FEISHU_APP_SECRET = os.getenv("FEISHU_APP_SECRET")
 # 添加你的飞书用户ID
 FEISHU_USER_ID = os.getenv("FEISHU_USER_ID", "填入你的飞书用户ID")
 
-# 简单的本地数据存储（实际生产环境应使用数据库，由于在 Vercel 等 Serverless 环境中无法持久化写入本地文件，
-# 这里改为写入到 /tmp 目录。如果需要持久化请替换为云数据库，比如 Redis 或 Postgres）
-DB_FILE = os.path.join(tempfile.gettempdir(), "bookings.json")
+# 简单的本地数据存储（实际生产环境应使用数据库）
+DB_FILE = "bookings.json"
 
 def load_bookings():
     if not os.path.exists(DB_FILE):
@@ -64,12 +62,15 @@ class CancelRequest(BaseModel):
 class DateQueryRequest(BaseModel):
     date: str
 
+import urllib.parse
+
 def get_feishu_tenant_token():
     url = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal"
     payload = {
         "app_id": FEISHU_APP_ID,
         "app_secret": FEISHU_APP_SECRET
     }
+    # 鉴权接口直接用 json 没问题，全是英文
     response = requests.post(url, json=payload)
     data = response.json()
     if data.get("code") != 0:
@@ -143,6 +144,20 @@ def bind_resume_to_event(calendar_id: str, event_id: str, file_token: str):
     except Exception as e:
         print(f"Exception during binding resume: {e}")
 
+def delete_feishu_event(event_id: str):
+    try:
+        token = get_feishu_tenant_token()
+        calendar_id = "feishu.cn_WPYG3LHf7kmGwN2Fqpq8dd@group.calendar.feishu.cn"
+        url = f"https://open.feishu.cn/open-apis/calendar/v4/calendars/{calendar_id}/events/{event_id}"
+        headers = {
+            "Authorization": f"Bearer {token}",
+        }
+        response = requests.delete(url, headers=headers)
+        if response.json().get("code") != 0:
+            print(f"Failed to delete event: {response.json()}")
+    except Exception as e:
+        print(f"Exception during delete event: {e}")
+
 def create_feishu_meeting(topic: str, start_time: datetime, candidate_email: str):
     token = get_feishu_tenant_token()
     
@@ -180,6 +195,7 @@ def create_feishu_meeting(topic: str, start_time: datetime, candidate_email: str
     
     if data.get("code") != 0:
         print(f"飞书API调用失败: {data}")
+        # 极客降级方案：MD5 生成虚拟会议号
         import hashlib
         unique_str = f"{topic}_{int(start_time.timestamp())}"
         hash_obj = hashlib.md5(unique_str.encode('utf-8'))
@@ -331,18 +347,12 @@ async def book_interview(
         # 解析时间，并且强制指定为系统所在的本地时间，然后生成 timestamp
         dt_str = f"{date} {time}"
         
-        # 很多服务器默认是 UTC 时间，我们在 strptime 之后，应该将其视为北京时间(GMT+8)
-        # 否则 strptime() 返回的是一个 naive datetime，.timestamp() 会将其当作系统本地时区来转换。
-        # 如果系统是 UTC (比如 Vercel)，那么 "21:00" 就会被当作 UTC 的 21:00（即北京时间次日 05:00）！
         import pytz
         tz = pytz.timezone('Asia/Shanghai')
         
         naive_start_time = datetime.strptime(dt_str, "%Y-%m-%d %H:%M")
         start_time = tz.localize(naive_start_time)
         
-        # 将中文名字转换为拼音，确保飞书 API 在接受时绝对不会因为字符编码报错
-        # lazy_pinyin("成都车") -> ['cheng', 'dou', 'che']
-        # 然后用空格拼起来，并使用 title() 让首字母大写 -> "Cheng Dou Che"
         pinyin_list = lazy_pinyin(name)
         pinyin_name = " ".join(pinyin_list).title()
         # 构建日程标题，支持产品经理和实习生
@@ -353,7 +363,6 @@ async def book_interview(
         try:
             meeting_url, event_id = create_feishu_meeting(topic, start_time, email)
         except Exception as e:
-            # 捕获飞书报错，如果没配好飞书，给个默认链接
             print(f"Warning: {e}")
             meeting_url = "https://vc.feishu.cn/j/mock_link_please_configure_api"
             
@@ -385,14 +394,13 @@ async def book_interview(
             "date": date,
             "time": time,
             "meeting_url": meeting_url,
+            "event_id": event_id,
             "has_resume": bool(resume),
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
         save_booking(email, booking_data)
         
         # 4. 设置 Cookie (有效7天)
-        # 注意：cookie的value如果包含非ascii字符（如中文姓名），必须进行URL编码
-        # 否则在 set_cookie 内部底层组装 HTTP Headers 时会触发 latin-1 编码错误
         import urllib.parse
         encoded_name = urllib.parse.quote(name)
         
@@ -430,6 +438,12 @@ async def get_my_booking(request: Request):
 
 @app.post("/api/cancel")
 async def cancel_booking(request: CancelRequest, response: Response):
+    bookings = load_bookings()
+    if request.email in bookings:
+        event_id = bookings[request.email].get("event_id")
+        if event_id:
+            delete_feishu_event(event_id)
+            
     # 取消预约
     delete_booking(request.email)
     # 清除 Cookie

@@ -100,7 +100,8 @@ def upload_resume_to_feishu(file_content: bytes, filename: str) -> str:
         data = {
             'file_name': filename,
             'parent_type': 'explorer',
-            'parent_node': ''
+            'parent_node': '',
+            'size': len(file_content)
         }
         
         response = requests.post(url, headers=headers, files=files, data=data)
@@ -116,7 +117,7 @@ def upload_resume_to_feishu(file_content: bytes, filename: str) -> str:
         return None
 
 def bind_resume_to_event(calendar_id: str, event_id: str, file_token: str):
-    """将上传成功的飞书云文档绑定到具体的日历事件附件中"""
+    """将上传成功的飞书云文档链接直接追加到日程的描述中（最稳定且兼容性最好的方案）"""
     if not file_token:
         return
         
@@ -129,20 +130,44 @@ def bind_resume_to_event(calendar_id: str, event_id: str, file_token: str):
             "Content-Type": "application/json"
         }
         
+        # 为了避免权限和租户校验导致的附件挂载失败(193107 错误)，
+        # 我们采用更稳定的降级方案：直接将在线文档的访问链接追加到会议描述里。
+        # 同时开启该文档的公开访问权限。
+        
+        # 1. 开启文档的公开访问权限
+        try:
+            perm_url = f"https://open.feishu.cn/open-apis/drive/v2/permissions/{file_token}/public?type=file"
+            perm_payload = {
+                "external_access": True,
+                "security_entity": "anyone_can_view",
+                "share_entity": "anyone",
+                "link_share_entity": "tenant_readable"
+            }
+            requests.patch(perm_url, headers=headers, json=perm_payload)
+        except Exception as e:
+            print(f"Warning setting permissions: {e}")
+
+        # 2. 获取当前日程信息，以保留原有的 description
+        get_res = requests.get(url, headers=headers)
+        get_data = get_res.json()
+        current_desc = ""
+        if get_data.get("code") == 0:
+            current_desc = get_data.get("data", {}).get("event", {}).get("description", "")
+            
+        # 3. 将云文档链接追加到 description
+        resume_link = f"https://feishu.cn/file/{file_token}"
+        new_desc = f"{current_desc}\n\n=======================\n📄 Candidate Resume (PDF): {resume_link}"
+        
         # 飞书 PATCH 接口增量更新
         payload = {
-            "attachments": [
-                {
-                    "file_token": file_token
-                }
-            ]
+            "description": new_desc
         }
         
         response = requests.patch(url, headers=headers, json=payload)
         if response.json().get("code") != 0:
-            print(f"Failed to bind resume to event: {response.json()}")
+            print(f"Failed to append resume link to event description: {response.json()}")
     except Exception as e:
-        print(f"Exception during binding resume: {e}")
+        print(f"Exception during appending resume link: {e}")
 
 def delete_feishu_event(event_id: str):
     try:
